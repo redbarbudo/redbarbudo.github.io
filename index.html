@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0c1218" />
-  <title>Rain Window</title>
+  <title>Rain Window v3</title>
   <style>
     :root{
-      --text: rgba(245,248,252,.92);
-      --muted: rgba(235,240,245,.72);
+      --text: rgba(245,248,252,.94);
+      --muted: rgba(235,240,245,.76);
       --glass: rgba(8,14,20,.30);
       --line: rgba(255,255,255,.13);
       --shadow: 0 12px 45px rgba(0,0,0,.34);
@@ -29,7 +29,7 @@
     body{
       position:relative;
       background:
-        linear-gradient(rgba(7,10,14,.20), rgba(7,10,14,.26)),
+        linear-gradient(rgba(7,10,14,.14), rgba(7,10,14,.24)),
         url("./background-rain-window.png") center center / cover no-repeat fixed;
     }
 
@@ -39,15 +39,15 @@
       pointer-events:none;
       background:
         radial-gradient(circle at 50% 120%, rgba(90,110,120,.08), transparent 38%),
-        linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.25));
-      backdrop-filter: blur(1px);
+        linear-gradient(180deg, rgba(0,0,0,.06), rgba(0,0,0,.20));
+      backdrop-filter: blur(.6px);
     }
 
     .mist{
       position:fixed;
       inset:-10%;
       pointer-events:none;
-      opacity:.15;
+      opacity:.12;
       filter: blur(55px);
       background:
         radial-gradient(circle at 15% 30%, rgba(200,220,235,.35), transparent 15%),
@@ -61,6 +61,16 @@
       to   { transform: translate3d(3%, 2%, 0) scale(1.05); }
     }
 
+    #waterCanvas{
+      position:fixed;
+      inset:0;
+      width:100%;
+      height:100%;
+      display:block;
+      pointer-events:none;
+      z-index:2;
+    }
+
     .panel-wrap{
       position:fixed;
       inset:0;
@@ -68,11 +78,12 @@
       place-items:center;
       padding:24px;
       pointer-events:none;
+      z-index:5;
     }
 
     .panel{
       pointer-events:auto;
-      width:min(520px, calc(100vw - 32px));
+      width:min(540px, calc(100vw - 32px));
       padding:22px 22px 18px;
       border:1px solid var(--line);
       border-radius:22px;
@@ -113,6 +124,7 @@
       justify-content:space-between;
       align-items:center;
       gap:12px;
+      flex-wrap:wrap;
     }
 
     .soft-btn{
@@ -135,7 +147,7 @@
 
     .range{
       display:grid;
-      grid-template-columns: 86px 1fr 46px;
+      grid-template-columns: 92px 1fr 50px;
       gap:12px;
       align-items:center;
       font-size:14px;
@@ -172,7 +184,7 @@
       position:fixed;
       right:18px;
       bottom:88px;
-      max-width:220px;
+      max-width:240px;
       padding:8px 11px;
       border-radius:14px;
       border:1px solid rgba(255,255,255,.14);
@@ -198,11 +210,12 @@
       background:rgba(10,16,22,.30);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
+      z-index:10;
     }
 
     @media (max-width:640px){
       .panel{padding:18px 16px 16px}
-      .range{grid-template-columns: 76px 1fr 40px; gap:8px;}
+      .range{grid-template-columns: 80px 1fr 42px; gap:8px;}
       .cat-launch{right:14px; bottom:14px; width:62px; height:58px;}
       .cat-status{right:14px; bottom:78px;}
       .hint{left:10px; right:88px; bottom:10px}
@@ -212,12 +225,13 @@
 <body>
   <div class="backdrop"></div>
   <div class="mist"></div>
+  <canvas id="waterCanvas"></canvas>
 
   <div class="panel-wrap">
     <section class="panel" id="panel">
       <h1>Rain Window</h1>
       <p class="subtitle">
-        Вид из окна деревенского дома. Нажми на кошку, чтобы включить или выключить дождь.
+        Теперь по стеклу текут капли и струйки. Нажми на кошку, чтобы включить или выключить звук дождя.
       </p>
 
       <div class="controls">
@@ -245,7 +259,7 @@
 
   <button class="cat-launch" id="catBtn" aria-label="Запустить или остановить дождь" title="Запустить или остановить дождь">
     <svg viewBox="0 0 120 110" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
-      <path id="catShape" d="M26 40 L36 14 L54 33 Q60 30 66 33 L84 14 L94 40 Q104 52 104 66 Q104 84 90 95 Q76 106 60 106 Q44 106 30 95 Q16 84 16 66 Q16 52 26 40 Z"
+      <path d="M26 40 L36 14 L54 33 Q60 30 66 33 L84 14 L94 40 Q104 52 104 66 Q104 84 90 95 Q76 106 60 106 Q44 106 30 95 Q16 84 16 66 Q16 52 26 40 Z"
             fill="rgba(30,35,40,.92)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
       <ellipse cx="48" cy="62" rx="4.7" ry="6.2" fill="#eef4f8"/>
       <ellipse cx="72" cy="62" rx="4.7" ry="6.2" fill="#eef4f8"/>
@@ -262,6 +276,9 @@
   <div class="hint">H — показать/скрыть панель · F — полный экран · двойной клик — вернуть панель</div>
 
   <script>
+    // --------------------------
+    // UI
+    // --------------------------
     const panel = document.getElementById("panel");
     const catBtn = document.getElementById("catBtn");
     const catStatus = document.getElementById("catStatus");
@@ -269,12 +286,44 @@
     const pauseIcon = document.getElementById("pauseIcon");
     const hideBtn = document.getElementById("hideBtn");
     const fullscreenBtn = document.getElementById("fullscreenBtn");
-
     const volumeInput = document.getElementById("volume");
     const volumeValue = document.getElementById("volumeValue");
     const intensityInput = document.getElementById("intensity");
     const intensityValue = document.getElementById("intensityValue");
 
+    function setCatState(isPlaying) {
+      playIcon.style.display = isPlaying ? "none" : "block";
+      pauseIcon.style.display = isPlaying ? "block" : "none";
+      catStatus.textContent = isPlaying
+        ? "Дождь идёт. Нажми на кошку, чтобы поставить тишину."
+        : "Кошка спит. Нажми, чтобы запустить дождь.";
+    }
+
+    function togglePanel() {
+      panel.classList.toggle("hidden");
+    }
+
+    async function toggleFullscreen() {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        } else {
+          await document.exitFullscreen();
+        }
+      } catch (e) {}
+    }
+
+    hideBtn.addEventListener("click", togglePanel);
+    fullscreenBtn.addEventListener("click", toggleFullscreen);
+    document.body.addEventListener("dblclick", () => panel.classList.remove("hidden"));
+    addEventListener("keydown", (e) => {
+      if (e.key.toLowerCase() === "h") togglePanel();
+      if (e.key.toLowerCase() === "f") toggleFullscreen();
+    });
+
+    // --------------------------
+    // AUDIO: realistic rain bed + roof + metal drops
+    // --------------------------
     let audioCtx = null;
     let masterGain = null;
     let ambienceGain = null;
@@ -285,15 +334,6 @@
     let lowNoiseSource = null;
     let playing = false;
     let dropTimers = [];
-    let started = false;
-
-    function setCatState(isPlaying) {
-      playIcon.style.display = isPlaying ? "none" : "block";
-      pauseIcon.style.display = isPlaying ? "block" : "none";
-      catStatus.textContent = isPlaying
-        ? "Дождь идёт. Нажми на кошку, чтобы поставить тишину."
-        : "Кошка спит. Нажми, чтобы запустить дождь.";
-    }
 
     function createNoiseBuffer(ctx, seconds = 8, tone = "pinkish") {
       const length = Math.floor(ctx.sampleRate * seconds);
@@ -303,7 +343,6 @@
       let b0 = 0, b1 = 0, b2 = 0;
       for (let i = 0; i < length; i++) {
         const white = Math.random() * 2 - 1;
-
         if (tone === "pinkish") {
           b0 = 0.99765 * b0 + white * 0.0990460;
           b1 = 0.96300 * b1 + white * 0.2965164;
@@ -342,7 +381,6 @@
       metalGain.connect(masterGain);
       lowRumbleGain.connect(masterGain);
 
-      // Base ambient rain bed
       baseNoiseSource = audioCtx.createBufferSource();
       baseNoiseSource.buffer = createNoiseBuffer(audioCtx, 10, "pinkish");
       baseNoiseSource.loop = true;
@@ -355,19 +393,10 @@
       lp.type = "lowpass";
       lp.frequency.value = 7000;
 
-      const slightMotion = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
-      if (slightMotion) slightMotion.pan.value = -0.05;
-
       baseNoiseSource.connect(hp);
       hp.connect(lp);
-      if (slightMotion) {
-        lp.connect(slightMotion);
-        slightMotion.connect(ambienceGain);
-      } else {
-        lp.connect(ambienceGain);
-      }
+      lp.connect(ambienceGain);
 
-      // Low rumble / distant room tone
       lowNoiseSource = audioCtx.createBufferSource();
       lowNoiseSource.buffer = createNoiseBuffer(audioCtx, 10, "white");
       lowNoiseSource.loop = true;
@@ -381,7 +410,6 @@
 
       baseNoiseSource.start();
       lowNoiseSource.start();
-      started = true;
     }
 
     function rand(min, max) {
@@ -390,8 +418,8 @@
 
     function triggerRoofDrop() {
       if (!audioCtx || !playing) return;
-
       const now = audioCtx.currentTime;
+
       const osc = audioCtx.createOscillator();
       osc.type = "triangle";
       osc.frequency.setValueAtTime(rand(170, 260), now);
@@ -415,10 +443,8 @@
 
       osc.connect(toneFilter);
       toneFilter.connect(gain);
-
       noise.connect(noiseHP);
       noiseHP.connect(gain);
-
       gain.connect(roofGain);
 
       osc.start(now);
@@ -429,7 +455,6 @@
 
     function triggerMetalDrop() {
       if (!audioCtx || !playing) return;
-
       const now = audioCtx.currentTime;
 
       const osc1 = audioCtx.createOscillator();
@@ -492,10 +517,15 @@
       cancelRoofLoop = cancelMetalLoop = cancelMetalLoop2 = null;
     }
 
-    function updateIntensity() {
-      intensityValue.textContent = intensityInput.value;
-      if (!audioCtx) return;
+    function updateVolume() {
+      volumeValue.textContent = volumeInput.value + "%";
+      if (!audioCtx || !masterGain || !playing) return;
+      const target = Math.max(0.0001, Number(volumeInput.value) / 100);
+      masterGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.1);
+    }
 
+    function updateAudioIntensity() {
+      if (!audioCtx) return;
       const n = Number(intensityInput.value) / 100;
       ambienceGain.gain.setTargetAtTime(0.18 + n * 0.38, audioCtx.currentTime, 0.15);
       roofGain.gain.setTargetAtTime(0.18 + n * 0.54, audioCtx.currentTime, 0.15);
@@ -516,30 +546,15 @@
           const t = Number(intensityInput.value);
           return Math.max(260, 1600 - t * 9 + Math.random() * 350);
         };
-
         cancelRoofLoop = scheduleLoop(triggerRoofDrop, roofBase);
         cancelMetalLoop = scheduleLoop(triggerMetalDrop, metalBase);
-        cancelMetalLoop2 = scheduleLoop(() => {
-          if (Math.random() < 0.75) triggerMetalDrop();
-        }, metalBase2);
-      }
-    }
-
-    function updateVolume() {
-      volumeValue.textContent = volumeInput.value + "%";
-      if (!audioCtx || !masterGain) return;
-      const target = Math.max(0.0001, Number(volumeInput.value) / 100);
-      if (playing) {
-        masterGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.1);
+        cancelMetalLoop2 = scheduleLoop(() => { if (Math.random() < 0.75) triggerMetalDrop(); }, metalBase2);
       }
     }
 
     async function toggleRain() {
       ensureAudio();
-
-      if (audioCtx.state === "suspended") {
-        await audioCtx.resume();
-      }
+      if (audioCtx.state === "suspended") await audioCtx.resume();
 
       if (!playing) {
         playing = true;
@@ -550,7 +565,7 @@
           Math.max(0.0001, Number(volumeInput.value) / 100),
           audioCtx.currentTime + 1.2
         );
-        updateIntensity();
+        updateAudioIntensity();
       } else {
         playing = false;
         setCatState(false);
@@ -561,39 +576,342 @@
       }
     }
 
-    function togglePanel(){
-      panel.classList.toggle("hidden");
-    }
-
-    async function toggleFullscreen(){
-      try{
-        if (!document.fullscreenElement) {
-          await document.documentElement.requestFullscreen();
-        } else {
-          await document.exitFullscreen();
-        }
-      } catch (e){}
-    }
-
     catBtn.addEventListener("click", toggleRain);
-    hideBtn.addEventListener("click", togglePanel);
-    fullscreenBtn.addEventListener("click", toggleFullscreen);
-
     volumeInput.addEventListener("input", updateVolume);
+
+    // --------------------------
+    // WATER ON GLASS ANIMATION
+    // --------------------------
+    const canvas = document.getElementById("waterCanvas");
+    const ctx = canvas.getContext("2d");
+    let width = 0, height = 0, dpr = 1;
+
+    const droplets = [];
+    const runners = [];
+    const streaks = [];
+
+    function resizeCanvas() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      buildWater();
+    }
+
+    function intensityNorm() {
+      return Number(intensityInput.value) / 100;
+    }
+
+    function randomDroplet(yBiasTop = false) {
+      const n = intensityNorm();
+      const r = 0.8 + Math.random() * 3.8 + n * 1.0;
+      return {
+        x: Math.random() * width,
+        y: yBiasTop ? Math.random() * height * 0.45 : Math.random() * height,
+        r,
+        a: 0.05 + Math.random() * 0.18,
+        life: 120 + Math.random() * 420,
+        wobble: Math.random() * Math.PI * 2,
+        speedBias: 0.02 + Math.random() * 0.08 + n * 0.03,
+        moving: Math.random() < (0.12 + n * 0.18),
+        trail: []
+      };
+    }
+
+    function newRunner(fromTop = true) {
+      const n = intensityNorm();
+      const len = 60 + Math.random() * 220 + n * 120;
+      return {
+        x: Math.random() * width,
+        y: fromTop ? -len - Math.random() * 120 : Math.random() * height * 0.3,
+        vy: 0.35 + Math.random() * 0.75 + n * 0.85,
+        len,
+        w: 1 + Math.random() * 1.8 + n * 0.8,
+        alpha: 0.05 + Math.random() * 0.13,
+        wobble: 8 + Math.random() * 14,
+        phase: Math.random() * Math.PI * 2,
+        headR: 1.8 + Math.random() * 2.6 + n * 0.8,
+        tail: []
+      };
+    }
+
+    function newStreak() {
+      const n = intensityNorm();
+      return {
+        x: Math.random() * width,
+        y: -100 - Math.random() * 220,
+        vy: 0.18 + Math.random() * 0.32 + n * 0.35,
+        len: 120 + Math.random() * 320 + n * 200,
+        w: 0.8 + Math.random() * 1.2,
+        alpha: 0.028 + Math.random() * 0.04,
+        phase: Math.random() * Math.PI * 2,
+        wobble: 5 + Math.random() * 8
+      };
+    }
+
+    function buildWater() {
+      droplets.length = 0;
+      runners.length = 0;
+      streaks.length = 0;
+
+      const n = intensityNorm();
+      const dropletCount = Math.floor(120 + n * 260);
+      const runnerCount = Math.floor(7 + n * 18);
+      const streakCount = Math.floor(4 + n * 12);
+
+      for (let i = 0; i < dropletCount; i++) droplets.push(randomDroplet(i < dropletCount * 0.4));
+      for (let i = 0; i < runnerCount; i++) runners.push(newRunner(true));
+      for (let i = 0; i < streakCount; i++) streaks.push(newStreak());
+    }
+
+    function drawBlurredDot(x, y, r, alpha) {
+      const g = ctx.createRadialGradient(x - r * 0.25, y - r * 0.25, r * 0.12, x, y, r);
+      g.addColorStop(0, `rgba(255,255,255,${alpha * 0.92})`);
+      g.addColorStop(0.55, `rgba(215,230,240,${alpha * 0.45})`);
+      g.addColorStop(1, `rgba(215,230,240,0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(255,255,255,${alpha * 0.22})`;
+      ctx.lineWidth = Math.max(.6, r * 0.20);
+      ctx.arc(x - r * 0.1, y - r * 0.12, r * 0.75, Math.PI * 1.08, Math.PI * 1.8);
+      ctx.stroke();
+    }
+
+    function updateDroplets(dt) {
+      const n = intensityNorm();
+
+      for (const d of droplets) {
+        d.life -= dt * 0.05;
+        d.wobble += dt * 0.0015;
+
+        if (!d.moving && Math.random() < 0.0007 + n * 0.002) {
+          d.moving = true;
+        }
+
+        if (d.moving) {
+          const vy = d.speedBias * dt * 0.08 * (0.8 + d.r * 0.12);
+          d.y += vy;
+          d.x += Math.sin(d.wobble + d.y * 0.012) * 0.05 * d.r;
+
+          if (Math.random() < 0.35) {
+            d.trail.push({x: d.x, y: d.y, r: Math.max(0.7, d.r * 0.18), a: d.a * 0.35});
+          }
+
+          if (d.trail.length > 10) d.trail.shift();
+        }
+
+        d.a += (0.04 + Math.random() * 0.05 - d.a) * 0.014;
+
+        for (const t of d.trail) {
+          t.a *= 0.985;
+          t.r *= 0.996;
+        }
+        d.trail = d.trail.filter(t => t.a > 0.01);
+
+        if (d.y > height + 20 || d.life <= 0) {
+          Object.assign(d, randomDroplet(true), {y: -Math.random() * 40});
+        }
+      }
+
+      // merging effect for nearby drops
+      for (let i = 0; i < droplets.length; i++) {
+        const a = droplets[i];
+        for (let j = i + 1; j < droplets.length; j++) {
+          const b = droplets[j];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const dist2 = dx * dx + dy * dy;
+          const target = (a.r + b.r) * 0.55;
+          if (dist2 < target * target && Math.abs(dy) < 12) {
+            if (a.r >= b.r) {
+              a.r = Math.min(7.5, a.r + b.r * 0.08);
+              a.a = Math.min(0.22, (a.a + b.a) * 0.62);
+              b.life = 0;
+            } else {
+              b.r = Math.min(7.5, b.r + a.r * 0.08);
+              b.a = Math.min(0.22, (a.a + b.a) * 0.62);
+              a.life = 0;
+            }
+          }
+        }
+      }
+    }
+
+    function drawDroplets() {
+      for (const d of droplets) {
+        if (d.trail.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(d.trail[0].x, d.trail[0].y);
+          for (let i = 1; i < d.trail.length; i++) {
+            const p = d.trail[i];
+            ctx.lineTo(p.x, p.y);
+          }
+          ctx.strokeStyle = `rgba(220,235,245,${d.a * 0.09})`;
+          ctx.lineWidth = Math.max(0.5, d.r * 0.2);
+          ctx.lineCap = "round";
+          ctx.stroke();
+        }
+
+        drawBlurredDot(d.x, d.y, d.r, d.a);
+      }
+    }
+
+    function updateRunners(dt) {
+      const n = intensityNorm();
+      for (const s of runners) {
+        s.y += s.vy * dt * 0.06;
+        s.phase += dt * 0.0018;
+        const headX = s.x + Math.sin(s.phase + s.y * 0.010) * s.wobble;
+
+        s.tail.push({x: headX, y: s.y, r: s.headR, a: s.alpha});
+        if (s.tail.length > Math.max(16, Math.floor(s.len / 10))) s.tail.shift();
+
+        if (Math.random() < 0.15 + n * 0.2) {
+          droplets.push({
+            x: headX + (Math.random() - 0.5) * 6,
+            y: s.y + Math.random() * 3,
+            r: 0.8 + Math.random() * 1.5,
+            a: 0.05 + Math.random() * 0.08,
+            life: 90 + Math.random() * 180,
+            wobble: Math.random() * Math.PI * 2,
+            speedBias: 0.02 + Math.random() * 0.05,
+            moving: false,
+            trail: []
+          });
+        }
+
+        if (s.y - s.len > height + 50) {
+          Object.assign(s, newRunner(true));
+        }
+      }
+    }
+
+    function drawRunners() {
+      for (const s of runners) {
+        if (s.tail.length < 2) continue;
+
+        ctx.beginPath();
+        ctx.moveTo(s.tail[0].x, s.tail[0].y);
+        for (let i = 1; i < s.tail.length; i++) {
+          const p = s.tail[i];
+          const prev = s.tail[i - 1];
+          const mx = (prev.x + p.x) / 2;
+          const my = (prev.y + p.y) / 2;
+          ctx.quadraticCurveTo(prev.x, prev.y, mx, my);
+        }
+
+        ctx.strokeStyle = `rgba(222,236,246,${s.alpha})`;
+        ctx.lineWidth = s.w;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(255,255,255,${s.alpha * 0.16})`;
+        ctx.lineWidth = Math.max(0.4, s.w * 0.35);
+        ctx.lineCap = "round";
+        ctx.moveTo(s.tail[0].x - s.w * 0.15, s.tail[0].y);
+        for (let i = 1; i < s.tail.length; i++) {
+          const p = s.tail[i];
+          const prev = s.tail[i - 1];
+          const mx = (prev.x + p.x) / 2;
+          const my = (prev.y + p.y) / 2;
+          ctx.quadraticCurveTo(prev.x - s.w * 0.15, prev.y, mx - s.w * 0.12, my);
+        }
+        ctx.stroke();
+
+        const head = s.tail[s.tail.length - 1];
+        drawBlurredDot(head.x, head.y, s.headR, Math.min(0.18, s.alpha * 1.2));
+      }
+    }
+
+    function updateStreaks(dt) {
+      for (const s of streaks) {
+        s.y += s.vy * dt * 0.05;
+        if (s.y - s.len > height + 60) {
+          Object.assign(s, newStreak());
+        }
+      }
+    }
+
+    function drawStreaks() {
+      for (const s of streaks) {
+        const x1 = s.x + Math.sin(s.phase + s.y * 0.004) * s.wobble;
+        const y1 = s.y;
+        const x2 = s.x + Math.sin(s.phase + (s.y + s.len) * 0.004) * s.wobble * 0.55;
+        const y2 = s.y + s.len;
+
+        const g = ctx.createLinearGradient(x1, y1, x2, y2);
+        g.addColorStop(0, "rgba(220,235,245,0)");
+        g.addColorStop(0.18, `rgba(220,235,245,${s.alpha * 0.7})`);
+        g.addColorStop(0.82, `rgba(220,235,245,${s.alpha})`);
+        g.addColorStop(1, "rgba(220,235,245,0)");
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.bezierCurveTo(
+          x1 + Math.sin(s.phase + 1.1) * s.wobble * 0.7, y1 + s.len * 0.22,
+          x2 - Math.cos(s.phase + 0.7) * s.wobble * 0.7, y1 + s.len * 0.75,
+          x2, y2
+        );
+        ctx.strokeStyle = g;
+        ctx.lineWidth = s.w;
+        ctx.lineCap = "round";
+        ctx.stroke();
+      }
+    }
+
+    let lastTs = performance.now();
+
+    function render(ts) {
+      const dt = Math.min(33, ts - lastTs);
+      lastTs = ts;
+
+      ctx.clearRect(0, 0, width, height);
+
+      updateStreaks(dt);
+      drawStreaks();
+
+      updateRunners(dt);
+      drawRunners();
+
+      updateDroplets(dt);
+      drawDroplets();
+
+      // soft sheen layer to suggest wet glass
+      const sheen = ctx.createLinearGradient(0, 0, width, height);
+      sheen.addColorStop(0, "rgba(255,255,255,0.00)");
+      sheen.addColorStop(0.25, "rgba(255,255,255,0.018)");
+      sheen.addColorStop(0.52, "rgba(255,255,255,0.010)");
+      sheen.addColorStop(1, "rgba(255,255,255,0.00)");
+      ctx.fillStyle = sheen;
+      ctx.fillRect(0, 0, width, height);
+
+      requestAnimationFrame(render);
+    }
+
+    function updateIntensity() {
+      intensityValue.textContent = intensityInput.value;
+      buildWater();
+      updateAudioIntensity();
+    }
+
     intensityInput.addEventListener("input", updateIntensity);
+    window.addEventListener("resize", resizeCanvas);
 
-    document.body.addEventListener("dblclick", () => {
-      panel.classList.remove("hidden");
-    });
-
-    addEventListener("keydown", (e) => {
-      if (e.key.toLowerCase() === "h") togglePanel();
-      if (e.key.toLowerCase() === "f") toggleFullscreen();
-    });
-
-    updateVolume();
+    resizeCanvas();
     updateIntensity();
+    updateVolume();
     setCatState(false);
+    requestAnimationFrame(render);
   </script>
 </body>
 </html>
